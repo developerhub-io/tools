@@ -1,0 +1,70 @@
+<html>
+<head>
+    <!-- import js-yaml library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+<div style="display: flex; flex-direction: column;">
+    <textarea id="in" style="height: calc(100vh - 30px);" placeholder="Paste JSON or YAML OpenAPI definition here and then click format at the bottom."></textarea>
+    <button onclick="format()" style="height: 30px">Format</button>
+</div>
+<script>
+  function orderMethods(openApiJson) {
+    const methodsOrder = ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'];
+    // Loop through paths
+    for (const path in openApiJson.paths) {
+      const operations = openApiJson.paths[path];
+      // Loop through operations
+      for (const operation in operations) {
+        if (methodsOrder.indexOf(operation.toUpperCase()) < 0) {
+          continue;
+        }
+        const operationObj = operations[operation];
+        const methods = Object.keys(operationObj).filter(key => methodsOrder.includes(key.toUpperCase()));
+        const otherKeys = Object.keys(operationObj).filter(key => !methods.includes(key.toUpperCase()));
+        // Reorder methods
+        const orderedMethods = methods.sort((a, b) => {
+          return methodsOrder.indexOf(a.toUpperCase()) - methodsOrder.indexOf(b.toUpperCase());
+        });
+        // Create new object with ordered methods and retain other keys
+        const orderedOperation = {};
+        orderedMethods.forEach(method => {
+          orderedOperation[method] = operationObj[method];
+        });
+        otherKeys.forEach(key => {
+          orderedOperation[key] = operationObj[key];
+        });
+        // Update original operation with ordered methods
+        openApiJson.paths[path][operation] = orderedOperation;
+      }
+    }
+    return openApiJson;
+  }
+
+  function format() {
+    const text = document.getElementById('in').value;
+    // check if text is JSON, otherwise transform YAML to JSON
+    let openApiDefinition;
+    try {
+      openApiDefinition = JSON.parse(text);
+    } catch (e) {
+      try {
+        openApiDefinition = jsyaml.load(text);
+      } catch (e) {
+        alert('Invalid JSON or YAML');
+        return;
+      }
+    }
+    const orderedOpenApiDefinition = orderMethods(openApiDefinition);
+    const formattedCode = JSON.stringify(orderedOpenApiDefinition, null, 2);
+    document.getElementById('in').value = formattedCode;
+
+    alert('Done');
+  }
+</script>
+</body>
